@@ -118,3 +118,25 @@ def draw_with_big_loops(A, loop_size=0.3):
 
     plt.axis("off")
     plt.show()
+
+
+def full_bipartite_graph(n, m):
+    zero_nn = np.zeros((n, n))
+    zero_mm = np.zeros((m, m))
+    ones_nm = np.ones((n, m))
+    ones_mn = np.ones((m, n))
+    
+    return np.block([
+        [zero_nn,  ones_nm],
+        [ones_mn,  zero_mm]
+    ])
+
+
+def srg_quotient_matrix(k, _lambda, mu):
+    return np.array([
+        [0, k, 0], 
+        [1, _lambda, k - _lambda - 1], 
+        [0, mu, k - mu]])
+
+def srg_quotient_matrix__one_self_loop(k, _lambda, mu):
+    return np.array([[1, k, 0], [1, _lambda, k - _lambda - 1], [0, mu, k - mu]])
