@@ -19,106 +19,6 @@ def are_similar(A, B, tolerance=1e-9):
             return True
     return False
 
-def generate_symmetric_adjacency_matrices_3_eigenvalues(n, self_loops=True, tolerance=1e-9):
-    """
-    Generate all non-similar symmetric adjacency matrices of size n with self-loops
-    that have exactly three distinct eigenvalues.
-    
-    Parameters:
-    -----------
-    n : int
-        Size of the adjacency matrix (n x n)
-    tolerance : float
-        Tolerance for determining if eigenvalues are distinct (default: 1e-9)
-    
-    Returns:
-    --------
-    list of numpy.ndarray
-        List of non-similar n x n symmetric adjacency matrices with exactly 3 distinct eigenvalues
-    """
-    if n < 1:
-        raise ValueError("Matrix size n must be at least 1")
-    
-    # For symmetric matrix, we only need upper triangular entries (including diagonal)
-    num_entries = n * (n + 1) // 2
-    
-    # First, collect all matrices with 3 eigenvalues
-    candidates = []
-    
-    # Iterate through all 2^num_entries possible configurations
-    for config in product([0, 1], repeat=num_entries):
-        # Build symmetric matrix from configuration
-        matrix = np.zeros((n, n), dtype=int)
-        
-        idx = 0
-        for i in range(n):
-            for j in range(i, n):
-                matrix[i, j] = config[idx]
-                matrix[j, i] = config[idx]  # Ensure symmetry
-                idx += 1
-
-        if not self_loops:
-            for i in range(n):
-                matrix[i, i] = 0
-        
-        # Compute eigenvalues
-        eigenvalues = np.linalg.eigvalsh(matrix)
-        
-        # Round eigenvalues to handle numerical precision
-        rounded_eigenvalues = np.round(eigenvalues / tolerance) * tolerance
-        
-        # Count distinct eigenvalues
-        unique_eigenvalues = np.unique(rounded_eigenvalues)
-        
-        if len(unique_eigenvalues) == 3:
-            candidates.append(matrix)
-    
-    # Filter out similar matrices
-    non_similar_matrices = []
-    
-    for candidate in candidates:
-        is_similar_to_existing = False
-        
-        # Check if candidate is similar to any already selected matrix
-        for selected in non_similar_matrices:
-            if are_similar(candidate, selected, tolerance):
-                is_similar_to_existing = True
-                break
-        
-        if not is_similar_to_existing:
-            non_similar_matrices.append(candidate)
-    
-    return non_similar_matrices
-
-
-def draw_with_big_loops(A, loop_size=0.3):
-    G = nx.from_numpy_array(A, create_using=nx.Graph)
-
-    pos = nx.spring_layout(G, seed=1)
-
-    # Draw nodes and normal edges
-    nx.draw_networkx_nodes(G, pos, node_size=800)
-    nx.draw_networkx_labels(G, pos)
-    nx.draw_networkx_edges(G, pos, edgelist=[
-        e for e in G.edges() if e[0] != e[1]
-    ])
-
-    # Draw self-loops manually as circles
-    ax = plt.gca()
-    for n in G.nodes():
-        if G.has_edge(n, n):
-            x, y = pos[n]
-            circle = plt.Circle(
-                (x, y),
-                radius=loop_size,
-                fill=False,
-                linewidth=2
-            )
-            ax.add_patch(circle)
-
-    plt.axis("off")
-    plt.show()
-
 
 def full_bipartite_graph(n, m):
     zero_nn = np.zeros((n, n))
@@ -140,3 +40,92 @@ def srg_quotient_matrix(k, _lambda, mu):
 
 def srg_quotient_matrix__one_self_loop(k, _lambda, mu):
     return np.array([[1, k, 0], [1, _lambda, k - _lambda - 1], [0, mu, k - mu]])
+
+
+def permute_matrix_by_partition(matrix, partition):
+    """
+    Permute the rows and columns of a matrix so that vertices in the same
+    partition cell are grouped together. Cell 0 comes first, then cell 1, etc.
+
+    Parameters:
+    -----------
+    matrix : array-like
+        Square matrix (e.g. adjacency matrix) of shape (n, n).
+    partition : array-like
+        Array of length n where partition[i] is the cell index of vertex i.
+
+    Returns:
+    --------
+    permuted_matrix : np.ndarray
+        Matrix with rows and columns reordered by partition.
+    perm : np.ndarray
+        The permutation index array such that permuted_matrix = matrix[perm][:, perm].
+    """
+    matrix = np.asarray(matrix)
+    partition = np.asarray(partition)
+    n = matrix.shape[0]
+    if partition.shape[0] != n:
+        raise ValueError("partition length must equal matrix size n")
+    # Indices that sort by partition: all cell-0 vertices first, then cell-1, etc.
+    perm = np.argsort(partition)
+    return matrix[np.ix_(perm, perm)].copy(), perm
+
+
+def get_least_cell_quotient(adj_matrix):
+    """
+    Compute the quotient matrix for the coarsest equitable partition of a graph.
+    
+    An equitable partition is a partition where the number of edges from a node
+    to cells depends only on which cell the node is in, not the specific node.
+    
+    Parameters:
+    -----------
+    adj_matrix : array-like
+        The adjacency matrix of the graph
+    
+    Returns:
+    --------
+    quotient_matrix : np.ndarray
+        The quotient matrix (each entry is the number of edges between cells)
+    partition : np.ndarray
+        The partition of vertices (cell assignment for each vertex)
+    """
+    adj = np.array(adj_matrix)
+    n = adj.shape[0]
+    
+    # 1. Start with all nodes in the same partition (color 0)
+    partition = np.zeros(n, dtype=int)
+    
+    while True:
+        # 2. For each node, create a signature based on its neighbors' partitions
+        # Signature = (current_partition, sorted_list_of_neighbor_partitions)
+        signatures = []
+        for i in range(n):
+            neighbor_parts = sorted(partition[j] for j in range(n) if adj[i, j] > 0)
+            signatures.append((partition[i], tuple(neighbor_parts)))
+        
+        # 3. Map unique signatures to new partition labels (colors)
+        unique_sigs = sorted(list(set(signatures)))
+        sig_map = {sig: idx for idx, sig in enumerate(unique_sigs)}
+        new_partition = np.array([sig_map[sig] for sig in signatures])
+        
+        # 4. If the partition hasn't changed, we've found the coarsest equitable partition
+        if np.array_equal(new_partition, partition):
+            break
+        partition = new_partition
+
+    # 5. Build the quotient matrix
+    num_cells = len(unique_sigs)
+    quotient_matrix = np.zeros((num_cells, num_cells))
+    
+    cells = [np.where(partition == i)[0] for i in range(num_cells)]
+    
+    for i in range(num_cells):
+        for j in range(num_cells):
+            # Pick any representative node 'u' from cell i
+            u = cells[i][0]
+            # Count edges from 'u' to all nodes in cell j
+            edge_count = sum(adj[u, v] for v in cells[j])
+            quotient_matrix[i, j] = edge_count
+            
+    return quotient_matrix, partition
