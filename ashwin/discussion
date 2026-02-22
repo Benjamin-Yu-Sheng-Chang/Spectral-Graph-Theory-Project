@@ -1,0 +1,7 @@
+Define a operator as removing all the loops and add a vertex that connects everything including itself This operator preserves row sum
+
+We can define another operator by create a vertex and connect it to every vertex in a cell. This operator might be a candidate for preserving distinct eigen value
+
+[1, 1, 1], [1, 1, 1], [1, 1, 1] -> [0, 1, 1, 1], [1, 0, 1, 1], [1, 1, 0, 1], [1, 1, 1, 1]
+
+Task: What's the sufficient condition for the above operators to preserve distinct eigen values

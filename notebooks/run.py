@@ -10,7 +10,15 @@ from numpy import trace
 from networkx import is_bipartite
 
 tolerance = 1e-10
-n = 8
+
+def np_unique(A):
+    eigenvalues = np.linalg.eigvalsh(A)
+    rounded_eigenvalues = np.round(eigenvalues / tolerance) * tolerance
+    unique_eigenvalues = np.unique(rounded_eigenvalues)
+    return unique_eigenvalues
+
+
+n = 9
 
 path = f"../graphs/graph{n}c.g6.txt"
 f = open(path, "r")
@@ -81,15 +89,25 @@ print("num of others: ", len(others))
 
 
 for other in others:
-    print(other)
-    print(np.sum(other, axis=1))
+    q_mat, part = get_least_cell_quotient(other)
+    permuted, perm = permute_matrix_by_partition(other, part)
+    print(permuted)
+    print(np_unique(permuted))
     print("\n")
-    
+    print(q_mat)
+    print("\n")
+    print(np.sum(permuted, axis=1))
+    print("\n")
+
 q_mat, part = get_least_cell_quotient(others[0])
 permuted, perm = permute_matrix_by_partition(others[0], part)
+
 nx.draw(nx.from_numpy_array(permuted), with_labels=True)
 
-q_mat, part = get_least_cell_quotient(others[1])
-permuted, perm = permute_matrix_by_partition(others[1], part)
-nx.draw(nx.from_numpy_array(permuted), with_labels=True)
-q_mat
+np.linalg.eigvals(
+    np.array([
+        [0, 1, 1],
+        [1, 3, 1],
+        [4, 4, 1]
+    ])
+)
