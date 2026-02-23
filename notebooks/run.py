@@ -98,16 +98,3 @@ for other in others:
     print("\n")
     print(np.sum(permuted, axis=1))
     print("\n")
-
-q_mat, part = get_least_cell_quotient(others[0])
-permuted, perm = permute_matrix_by_partition(others[0], part)
-
-nx.draw(nx.from_numpy_array(permuted), with_labels=True)
-
-np.linalg.eigvals(
-    np.array([
-        [0, 1, 1],
-        [1, 3, 1],
-        [4, 4, 1]
-    ])
-)

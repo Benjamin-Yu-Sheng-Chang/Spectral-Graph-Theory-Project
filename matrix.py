@@ -129,3 +129,10 @@ def get_least_cell_quotient(adj_matrix):
             quotient_matrix[i, j] = edge_count
             
     return quotient_matrix, partition
+
+
+def np_unique(A):
+    eigenvalues = np.linalg.eigvalsh(A)
+    rounded_eigenvalues = np.round(eigenvalues / tolerance) * tolerance
+    unique_eigenvalues = np.unique(rounded_eigenvalues)
+    return unique_eigenvalues
